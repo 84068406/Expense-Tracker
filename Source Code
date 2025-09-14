@@ -1,0 +1,147 @@
+import json
+from datetime import datetime
+import tkinter as tk
+from tkinter import messagebox
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
+from tkinter import ttk
+import matplotlib.pyplot as plt
+
+FILE_NAME = "expenses.json"
+
+# --- Helper functions ---
+def load_expenses():
+    try:
+        with open(FILE_NAME, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+def save_expenses(expenses):
+    with open(FILE_NAME, "w") as f:
+        json.dump(expenses, f, indent=4)
+
+# --- Main App Class ---
+class ExpenseTracker:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("💰 Expense Tracker")
+        self.root.geometry("800x500")
+        
+        self.expenses = load_expenses()
+
+        # --- Title ---
+        title = tb.Label(root, text="Expense Tracker", font=("Helvetica", 20, "bold"), bootstyle=PRIMARY)
+        title.pack(pady=10)
+
+        # --- Input Frame ---
+        frame = tb.Frame(root, padding=10)
+        frame.pack(fill="x")
+
+        tb.Label(frame, text="Amount (₹):").grid(row=0, column=0, padx=5)
+        self.amount_entry = tb.Entry(frame)
+        self.amount_entry.grid(row=0, column=1, padx=5)
+
+        tb.Label(frame, text="Category:").grid(row=0, column=2, padx=5)
+        self.category_entry = tb.Entry(frame)
+        self.category_entry.grid(row=0, column=3, padx=5)
+
+        tb.Label(frame, text="Description:").grid(row=0, column=4, padx=5)
+        self.desc_entry = tb.Entry(frame)
+        self.desc_entry.grid(row=0, column=5, padx=5)
+
+        tb.Button(frame, text="➕ Add Expense", bootstyle=SUCCESS, command=self.add_expense).grid(row=0, column=6, padx=10)
+
+        # --- Treeview for Expenses ---
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=25, font=("Arial", 11))
+
+        self.tree = ttk.Treeview(root, columns=("Amount", "Category", "Description", "Date"), show="headings")
+        self.tree.heading("Amount", text="Amount (₹)")
+        self.tree.heading("Category", text="Category")
+        self.tree.heading("Description", text="Description")
+        self.tree.heading("Date", text="Date")
+        self.tree.pack(fill="both", expand=True, pady=10)
+
+        # --- Button Frame ---
+        btn_frame = tb.Frame(root)
+        btn_frame.pack(pady=10)
+
+        tb.Button(btn_frame, text="📊 Show Summary", bootstyle=INFO, command=self.show_summary).grid(row=0, column=0, padx=10)
+        tb.Button(btn_frame, text="📈 Show Chart", bootstyle=WARNING, command=self.show_chart).grid(row=0, column=1, padx=10)
+
+        self.load_tree()
+
+    # --- Add expense ---
+    def add_expense(self):
+        try:
+            amount = float(self.amount_entry.get())
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Amount must be a number!")
+            return
+
+        category = self.category_entry.get().capitalize()
+        desc = self.desc_entry.get()
+        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        expense = {
+            "amount": amount,
+            "category": category,
+            "description": desc,
+            "date": date
+        }
+
+        self.expenses.append(expense)
+        save_expenses(self.expenses)
+
+        self.tree.insert("", "end", values=(amount, category, desc, date))
+
+        self.amount_entry.delete(0, tk.END)
+        self.category_entry.delete(0, tk.END)
+        self.desc_entry.delete(0, tk.END)
+
+    # --- Load expenses in table ---
+    def load_tree(self):
+        for exp in self.expenses:
+            self.tree.insert("", "end", values=(exp["amount"], exp["category"], exp["description"], exp["date"]))
+
+    # --- Show Summary ---
+    def show_summary(self):
+        if not self.expenses:
+            messagebox.showinfo("Summary", "No expenses recorded yet!")
+            return
+
+        summary = {}
+        total = 0
+        for exp in self.expenses:
+            total += exp["amount"]
+            summary[exp["category"]] = summary.get(exp["category"], 0) + exp["amount"]
+
+        msg = "\n".join([f"{cat}: ₹{amt}" for cat, amt in summary.items()])
+        msg += f"\n\nTotal: ₹{total}"
+        messagebox.showinfo("Expense Summary", msg)
+
+    # --- Show Pie Chart ---
+    def show_chart(self):
+        if not self.expenses:
+            messagebox.showinfo("Chart", "No expenses recorded yet!")
+            return
+
+        summary = {}
+        for exp in self.expenses:
+            summary[exp["category"]] = summary.get(exp["category"], 0) + exp["amount"]
+
+        categories = list(summary.keys())
+        amounts = list(summary.values())
+
+        plt.figure(figsize=(6, 6))
+        plt.pie(amounts, labels=categories, autopct="%1.1f%%", startangle=140)
+        plt.title("Expense Distribution by Category")
+        plt.show()
+
+
+# --- Run App ---
+if __name__ == "__main__":
+    app = tb.Window(themename="superhero")  # You can try: flatly, darkly, cyborg, superhero, etc.
+    ExpenseTracker(app)
+    app.mainloop()
