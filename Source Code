@@ -25,7 +25,7 @@ def save_expenses(expenses):
 class ExpenseTracker:
     def __init__(self, root):
         self.root = root
-        self.root.title("💰 Expense Tracker")
+        self.root.title("💰 Expense Tracker by Shubham Pathak")
         self.root.geometry("800x500")
         
         self.expenses = load_expenses()
